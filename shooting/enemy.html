@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>地图</title>
+  <style>
+    body {
+      /* background-color: black; */
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: black;
+    }
+
+    #canvasTwo {
+      /* width: 500px;
+      height: 1000px; */
+      border: 4px solid #dd6d6d;
+    }
+  </style>
+</head>
+
+<body>
+  <div>
+    <canvas id="canvasTwo"></canvas>
+  </div>
+  <script>
+    /* @type {HTMLCanvasElement} */
+    const canvas = document.getElementById('canvasTwo');
+    const ctx = canvas.getContext('2d');
+    const CANVAS_WIDTH = canvas.width = 600;
+    const CANVAS_HEIGHT = canvas.height = 1000;
+    let gameSpeed = 10;
+    //敌人数量
+    const numberOfEnemies = 100;
+    //敌人数组
+    const enemiesArray = []
+
+
+    const enemyImage = new Image();
+    enemyImage.src = './image/enemies/ghost.png'
+
+
+    //构造蓝图
+    // class Enemy {
+    //   constructor(imageSrc, frameNuber) {
+    //     this.image = new Image()
+    //     this.image.src = imageSrc
+    //     // this.speed =  Math.random() * 3 - 1.5
+    //     this.spriteWidth = 240
+    //     this.spriteHeight = 270
+    //     this.width = this.spriteWidth / 3
+    //     this.height = this.spriteHeight / 3
+    //     this.x = Math.random() * (canvas.width - this.width)
+    //     this.y = Math.random() * (canvas.height - this.height)
+    //     this.frame = 0
+    //     this.enemiesFrame = frameNuber
+    //     this.flapSpeed = Math.floor(Math.random() * 3 + 1)//取整
+    //   }
+    //   update() {
+    //     this.x += Math.random() * 3 - 1.5//让值在-2到2之间;
+    //     this.y += Math.random() * 3 - 1.5//让值在-2到2之间;
+    //     if (gameSpeed % this.flapSpeed == 0) {//这里要求两边必须是整数
+    //       this.frame > this.enemiesFrame ? this.frame = 0 : this.frame += 1;
+    //     }
+
+    //   }
+    //   draw() {
+    //     ctx.drawImage(this.image, this.spriteWidth * this.frame, 0, this.spriteWidth, this.spriteHeight, this.x, this.y, this.width, this.height);
+    //   }
+    // }
+    class Enemy {
+      constructor(imageSrc, frameNuber) {
+        this.image = new Image()
+        this.image.src = imageSrc
+        this.speed = Math.random() * -3 - 1
+        this.spriteWidth = 240
+        this.spriteHeight = 270
+        this.width = this.spriteWidth / 3
+        this.height = this.spriteHeight / 3
+        this.x = Math.random() * (canvas.width - this.width)
+        this.y = Math.random() * (canvas.height - this.height)
+        this.frame = 0
+        this.enemiesFrame = frameNuber
+        this.flapSpeed = Math.floor(Math.random() * 3 + 1)//取整
+        this.angle = 0
+        this.angleSpeed = Math.random() * 0.2
+        this.curve = Math.random() * 7
+      }
+      update() {
+        this.x += this.speed
+        this.y += this.curve * Math.sin(this.angle)
+        this.angle += this.angleSpeed
+        if (this.x + this.width < 0) {
+          this.x = canvas.width
+        }
+        if (gameSpeed % this.flapSpeed == 0) {//这里要求两边必须是整数
+          this.frame > this.enemiesFrame ? this.frame = 0 : this.frame += 1;
+        }
+
+      }
+      draw() {
+        ctx.drawImage(this.image, this.spriteWidth * this.frame, 0, this.spriteWidth, this.spriteHeight, this.x, this.y, this.width, this.height);
+      }
+    }
+
+    //按照蓝图新建怪物
+    for (let i = 0; i < numberOfEnemies; i++) {
+      enemiesArray.push(new Enemy('./image/enemies/ghost.png', 9))
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);//清除
+
+      enemiesArray.forEach(enemy => {
+        enemy.update()
+        enemy.draw()
+      })
+      gameSpeed++
+      requestAnimationFrame(animate);
+    }
+    animate()
+  </script>
+</body>
+
+</html>

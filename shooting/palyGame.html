@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏启动</title>
+  <style>
+    /* 公用素材 */
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .f {
+      display: flex;
+    }
+
+    .fb {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .fd {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .title {
+      text-align: center;
+      font-size: 50px;
+      font-family: 'Times New Roman', Times, serif;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 1);
+    }
+
+    #view {
+      position: relative;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #canvas1 {
+      /* border: 2px solid black; */
+
+    }
+
+    img {
+      width: 1000px;
+    }
+
+    #view-start {
+      width: 100%;
+      height: 100vh;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 100;
+      background: url('./image/addree/qiu.png');
+      background-size: cover;
+    }
+
+
+    button {
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 24px;
+      margin: 15px 30px;
+      outline: none;
+      border: none;
+      box-shadow: 2px 2px 4px rgba(0, 0, 0, 1);
+    }
+
+    #view-end {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100vh;
+      /* background-color: black; */
+      z-index: 999;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="view-end">
+    <div style="color: white;" class="title">游戏结束是否继续?</div>
+    <div>
+      <button id="tucu">是</button>
+      <button id="jixu">否</button>
+    </div>
+  </div>
+  <div id="view-start">
+    <div class="fd">
+      <div class="title">
+        奔跑吧!小狗
+      </div>
+      <div>
+        <button id="but-start">开始游戏</button>
+        <button onclick="endGame" id="but-end">退出游戏</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="view">
+    <canvas id="canvas1"></canvas>
+  </div>
+
+  <script>
+    window.addEventListener('load', function () {
+      //开始操作面板
+      const view = document.getElementById('view-start');
+      const finish = document.getElementById('view-end')
+      let startBtn = document.getElementById('but-start')
+      let endBtn = document.getElementById('but-end')
+      let tucu = document.getElementById('tucu')
+      let jixu = document.getElementById('jixu')
+      startBtn.addEventListener('click', () => {
+        console.log('隐藏开始界面! \n ----------游戏开始------------');
+        view.style.display = 'none'
+        animate(0)
+      })
+      endBtn.addEventListener('click', () => {
+        window.close()
+      })
+      tucu.addEventListener('click', () => {
+        finish.style.display = 'none'
+        view.style.display = 'flex'
+      })
+      jixu.addEventListener('click', () => {
+        location.reload()
+      })
+      //2D绘图区域
+      const canvas = document.getElementById('canvas1');
+      const ctx = canvas.getContext('2d');
+      canvas.width = document.documentElement.clientWidth;
+      canvas.height = document.documentElement.clientHeight;
+      let enemies = []
+      let score = 0
+      let gameOver = false
+      //输入控制事件
+      class InputHandler {
+        constructor() {
+          this.keys = [];
+          window.addEventListener('keydown', (e) => {//添加动作状态事件
+            if ((
+              e.key === 'ArrowDown' ||
+              e.key === 'ArrowUp' ||
+              e.key === 'ArrowLeft' ||
+              e.key === 'ArrowRight')
+              && this.keys.indexOf(e.key) === -1) {//-1代表在这个数组里不存在这个元素
+              this.keys.push(e.key)
+            }
+          })
+          window.addEventListener('keyup', (e) => {
+            if ((
+              e.key === 'ArrowDown' ||
+              e.key === 'ArrowUp' ||
+              e.key === 'ArrowLeft' ||
+              e.key === 'ArrowRight')) {
+              this.keys.splice(this.keys.indexOf(e.key), 1)
+            }
+          })
+        }
+      }
+      const Doge = new Image()
+      Doge.src = './image/figure/doge.png'
+      //角色人物类
+      class Player {
+        constructor(gameWidth, gameHeight) {
+          this.gameWidth = gameWidth;
+          this.gameHeight = gameHeight;
+          this.width = 294;
+          this.height = 265;
+          this.x = 0;
+          this.y = this.gameHeight - this.height;
+          this.image = Doge;
+          this.frameX = 0;
+          this.frameY = 3
+          this.maxFrame = 8;
+          this.speed = 0;
+          this.vy = 0;//跳跃速度
+          this.weight = 0.5;//重力
+          this.fps = 20
+          this.frameTimer = 0;
+          this.frameInterval = 1000 / this.fps
+          this.isImpact = true
+        }
+        draw(context) {
+
+          context.drawImage(this.image, this.frameX * this.width, this.frameY * this.height,
+            this.width, this.height, this.x, this.y, this.width, this.height)
+        }
+        update(input, deltaTime, enemies) {
+
+          //撞击检测
+          if (this.isImpact) {
+            enemies.forEach(e => {
+              let dx = (e.x + e.width / 2) - (this.x + this.width / 2 - 10)
+              let dy = (e.y + e.height / 2) - (this.y + this.height / 2)
+              let disr = Math.sqrt((dx * dx) + (dy * dy));
+              if (disr < (this.width / 2 - 10 + e.width / 2)) {
+                gameOver = true;
+                console.log("我被撞击了");
+                e.sfsc = true
+              }
+
+            })
+          }
+
+          if (input.keys.includes('ArrowRight')) {
+            this.speed = 5;
+          } else if (input.keys.includes('ArrowLeft')) {
+            this.speed = -5;
+          } else {
+            this.speed = 0;
+          }
+
+          if (input.keys.includes('ArrowUp') && this.onGround()) {
+            this.vy = -25;
+          }
+
+          if (input.keys.includes('ArrowDown')) {
+            this.vy = 20;
+          }
+
+          //区域限制
+          if (this.frameTimer > this.frameInterval) {
+            if (this.frameX >= this.maxFrame) this.frameX = 0;//动画画面限制
+            this.frameX++;
+            this.frameTimer = 0
+          } else {
+            this.frameTimer += deltaTime
+          }
+
+          this.x += this.speed;//移动逻辑
+          if (this.x > this.gameWidth - this.width) this.x = this.gameWidth - this.width;
+          if (this.x < 0) this.x = 0;
+          this.y += this.vy//高度
+
+          if (!this.onGround()) {//判断是否在天上
+            this.vy += this.weight
+            if (this.vy < 0) {
+              this.frameY = 1
+              this.maxFrame = 6
+            } else {
+              this.frameY = 2
+              this.maxFrame = 6
+            }
+          } else {
+
+            if (this.speed !== 0) {
+              // 在地面上奔跑
+              this.frameY = 3;
+              this.maxFrame = 8;
+              background.setSpeed(this.speed)
+            } else {
+              if (input.keys.includes('ArrowDown')) {
+                this.vy = 0;
+                this.frameY = 5;
+                this.maxFrame = 4;
+                this.isImpact = false
+              } else {
+                // 在地面上站立
+                this.vy = 0;
+                this.frameY = 0;
+                this.maxFrame = 6;
+                this.isImpact = true
+              }
+
+
+            }
+          }
+          if (this.y > this.gameHeight - this.height) this.y = this.gameHeight - this.height
+
+
+        }
+        onGround() {
+          return this.y >= this.gameHeight - this.height;//如果人物在天上
+        }
+      }
+      //地图类
+      const backgroundDitu = new Image()
+      backgroundDitu.src = './image/addree/ditu.png'
+      class Background {
+        constructor(gameWidth, gameHeight) {
+          this.gameWidth = gameWidth;
+          this.gameHeight = gameHeight;
+          this.image = backgroundDitu;
+          this.width = 2400;
+          this.height = 1000;
+          this.x = 0;
+          this.y = gameHeight - this.height;
+          this.speed = 0
+        }
+        setSpeed(speed) {
+          console.log(speed)
+          if (speed < 0) {
+            this.speed = 0
+            return
+          }
+          this.speed = speed
+        }
+        draw(content) {
+          content.drawImage(this.image, this.x, this.y, this.width, this.height)
+          content.drawImage(this.image, this.x + this.width, this.y, this.width, this.height)
+        }
+        update() {
+          this.x -= this.speed;
+          if (this.x < -this.width) this.x = 0
+        }
+      }
+      //敌人制造类
+      const enemiesOne = new Image()
+      enemiesOne.src = './image/enemies/ghost.png'
+      class Enemy1 {
+        constructor(gameWidth, gameHeight) {
+          this.gameWidth = gameWidth
+          this.gameHeight = gameHeight
+          this.width = 240
+          this.height = 270
+          this.image = enemiesOne
+          this.x = gameWidth;
+          this.y = this.gameHeight - this.height;
+          this.frameX = 0;
+          this.speed = Math.random() * 5 + 3;
+          this.maxFrame = 9;
+          this.angle = 0
+          this.angleSpeed = Math.random() * 0.12
+          this.fps = 20
+          this.frameTimer = 0;
+          this.frameInterval = 1000 / this.fps
+          this.sfsc = false;
+        }
+        update(deltaTime) {
+
+          if (this.frameTimer > this.frameInterval) {
+            if (this.frameX > this.maxFrame) {
+              this.frameX = 0
+            } else {
+              this.frameX++
+            }
+            this.frameTimer = 0
+          } else {
+            this.frameTimer += deltaTime
+          }
+          this.y = 100 * Math.cos(this.angle) + this.height + 350
+          this.angle += this.angleSpeed
+          this.x -= this.speed
+          if (this.x < -this.width) {
+            this.sfsc = true
+            score++
+          }
+        }
+        draw(context) {
+          context.beginPath();
+          context.fillStyle = 'white'; // 设置填充颜色
+          context.arc(this.x + this.width / 2, this.y + this.height / 2, this.width / 2, 0, Math.PI * 2);
+          context.fill(); // 填充圆形
+          context.drawImage(this.image, this.width * this.frameX, this.height * 0, this.width, this.height, this.x, this.y, this.width, this.height);
+        }
+      }
+      //怪物消失逻辑
+
+      function handleEnemies(deltaTime) {
+        if (enemyTimer > enemyInterval + randomEnemyInterval) {
+          enemies.push(new Enemy1(canvas.width, canvas.height))
+          enemyTimer = 0
+
+        } else {
+          enemyTimer += deltaTime
+        }
+        enemies.forEach(e => {
+          e.draw(ctx)
+          e.update(deltaTime)
+        })
+        //筛选出在屏幕中的怪物
+        enemies = enemies.filter(enemy => !enemy.sfsc)
+      }
+      //文本信息显示逻辑
+      function displayStatusText(context) {
+        context.fillStyle = 'black'
+        context.font = '40px Helvetica'
+        context.fillText('当前分数:' + score, 20, 50)
+        if (gameOver) {
+          context.textAlign = 'center'
+          context.fillStyle = 'black'
+          context.fillText('游戏结束', canvas.width / 2, 300);
+          finish.style.display = "flex"
+        }
+      }
+
+      const input = new InputHandler();
+      const background = new Background(canvas.width, canvas.height);
+      const player = new Player(canvas.width, canvas.height);
+
+
+      let lastTime = 0;
+      let enemyTimer = 0;
+      let enemyInterval = 2000
+      let randomEnemyInterval = Math.random() * 1000 + 500
+
+      function animate(timeStamp) {
+        const deltaTime = (timeStamp - lastTime);//帧间隔
+        lastTime = timeStamp;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        background.draw(ctx);
+        background.update();
+        player.draw(ctx);
+        player.update(input, deltaTime, enemies);
+        handleEnemies(deltaTime); // 修正函数名
+        displayStatusText(ctx)
+        if (!gameOver) {
+          requestAnimationFrame(animate);
+
+        }
+
+      }
+
+    })
+  </script>
+</body>
+
+</html>
